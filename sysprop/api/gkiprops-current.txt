@@ -1,0 +1,13 @@
+props {
+  module: "android.sysprop.GkiProperties"
+  prop {
+    api_name: "prevent_downgrade_spl"
+    scope: Internal
+    prop_name: "ro.build.ab_update.gki.prevent_downgrade_spl"
+  }
+  prop {
+    api_name: "prevent_downgrade_version"
+    scope: Internal
+    prop_name: "ro.build.ab_update.gki.prevent_downgrade_version"
+  }
+}
