@@ -30,16 +30,11 @@ using android::kver::KmiVersion;
 
 namespace {
 
-int CheckKmi(const KernelRelease& kernel_release, const std::string& kmi_version) {
-  const auto& actual_kmi_version = kernel_release.kmi_version().string();
+int CheckKmi(const KernelRelease& kernel_release, const KmiVersion& kmi_version) {
+  const auto& actual_kmi_version = kernel_release.kmi_version();
   if (actual_kmi_version != kmi_version) {
-    LOG(ERROR) << "KMI version does not match. Actual: " << actual_kmi_version
-               << ", expected: " << kmi_version;
-    return EX_SOFTWARE;
-  }
-  if (kernel_release.sub_level() == GetFactoryApexVersion()) {
-    LOG(ERROR) << "Kernel release is " << kernel_release.string() << ". Sub-level "
-               << GetFactoryApexVersion() << " is reserved for factory GKI APEX.";
+    LOG(ERROR) << "KMI version does not match. Actual: " << actual_kmi_version.string()
+               << ", expected: " << kmi_version.string();
     return EX_SOFTWARE;
   }
   return EX_OK;
@@ -89,10 +84,7 @@ int main(int argc, char** argv) {
     return EX_SOFTWARE;
   }
 
-  std::string apex_name;
-  if (FLAGS_factory) {
-    apex_name = GetApexName(*kmi_version);
-  } else {
+  if (!FLAGS_kernel_release_file.empty()) {
     std::string kernel_release_string;
     if (!android::base::ReadFileToString(FLAGS_kernel_release_file, &kernel_release_string)) {
       PLOG(ERROR) << "Cannot read " << FLAGS_kernel_release_file;
@@ -103,12 +95,11 @@ int main(int argc, char** argv) {
       LOG(ERROR) << kernel_release_string << " is not a valid GKI kernel release string";
       return EX_SOFTWARE;
     }
-    int res = CheckKmi(*kernel_release, FLAGS_kmi_version);
+    int res = CheckKmi(*kernel_release, *kmi_version);
     if (res != EX_OK) return res;
-
-    apex_name = GetApexName(kernel_release->kmi_version());
   }
 
+  std::string apex_name = GetApexName(*kmi_version);
   uint64_t apex_version = GetFactoryApexVersion();
 
   if (FLAGS_apex_manifest.empty()) {
