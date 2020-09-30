@@ -90,10 +90,8 @@ int main(int argc, char** argv) {
   }
 
   std::string apex_name;
-  uint64_t apex_version;
   if (FLAGS_factory) {
     apex_name = GetApexName(*kmi_version);
-    apex_version = GetFactoryApexVersion();
   } else {
     std::string kernel_release_string;
     if (!android::base::ReadFileToString(FLAGS_kernel_release_file, &kernel_release_string)) {
@@ -109,8 +107,9 @@ int main(int argc, char** argv) {
     if (res != EX_OK) return res;
 
     apex_name = GetApexName(kernel_release->kmi_version());
-    apex_version = GetApexVersion(*kernel_release);
   }
+
+  uint64_t apex_version = GetFactoryApexVersion();
 
   if (FLAGS_apex_manifest.empty()) {
     LOG(WARNING) << "Skip writing APEX manifest because --apex_manifest is not set.";
