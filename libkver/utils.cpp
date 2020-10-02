@@ -78,14 +78,8 @@ std::string GetApexName(const KmiVersion& kmi_version) {
                                      kmi_version.android_release(), kmi_version.generation());
 }
 
-uint64_t GetApexVersion(const KernelRelease& kernel_release) {
-  // TODO(b/168255100): define APEX version
-  return kernel_release.sub_level();
-}
-
 uint64_t GetFactoryApexVersion() {
-  // TODO(b/168255100): define APEX version
-  return 1;
+  return 300000000;
 }
 
 }  // namespace android::kver
