@@ -55,4 +55,12 @@ class KmiVersion {
   uint64_t gen_ = 0;
 };
 
+inline bool operator==(const KmiVersion& left, const KmiVersion& right) {
+  return left.tuple() == right.tuple();
+}
+
+inline bool operator!=(const KmiVersion& left, const KmiVersion& right) {
+  return left.tuple() != right.tuple();
+}
+
 }  // namespace android::kver
