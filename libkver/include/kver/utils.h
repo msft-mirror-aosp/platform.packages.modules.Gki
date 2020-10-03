@@ -35,10 +35,7 @@ bool IsKernelUpdateValid(const std::optional<KernelRelease>& old_kernel_release,
 // e.g. "com.android.gki.kmi_5_4_android12_0"
 std::string GetApexName(const KmiVersion& kmi_version);
 
-// Defines how kernel release is mapped to APEX versions.
-uint64_t GetApexVersion(const KernelRelease& kernel_release);
-
-// Return the APEX version for a factory GKI APEX.
+// Return the APEX version for a GKI APEX built from source.
 uint64_t GetFactoryApexVersion();
 
 }  // namespace android::kver
