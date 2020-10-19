@@ -28,6 +28,7 @@ from zipfile import ZipFile
 
 import common
 from ota_from_target_files import (Payload, PayloadSigner)
+from ota_utils import GetBootImageTimestamp
 
 logger = logging.getLogger(__name__)
 OPTIONS = common.OPTIONS
@@ -40,9 +41,6 @@ def _ParseArgs():
   parser.add_argument("--key", type=str,
                       help="Key to use to sign the package. If unspecified, script does not sign "
                            "the package and payload_properties.txt is not generated.")
-  parser.add_argument("--kernel-release-file", type=str,
-                      help="If boot is in input, a file containing the kernel release of the boot "
-                           "image. Create the file with `extract_kernel --output-release`.")
   parser.add_argument("--out", type=str, required=True,
                       help="Required output directory to payload.bin and payload_properties.txt")
   parser.add_argument("input", metavar="NAME:IMAGE", nargs="+",
@@ -58,30 +56,11 @@ def _PrepareEnvironment(args):
     return
   for path in args.tools:
     name = os.path.basename(path)
-    common.SetHostToolLocation(name, path)
+    # Use absolute path because GetBootImageTimestamp changes cwd when running some tools.
+    common.SetHostToolLocation(name, os.path.abspath(path))
     # brillo_update_payload is a shell script that depends on this environment variable.
     if name == "delta_generator":
       os.environ["GENERATOR"] = path
-
-
-def _GetKernelRelease(line):
-  """
-  Get GKI kernel release string from the given line.
-  """
-  PATTERN = r"^(\d+[.]\d+[.]\d+-android\d+-\d+).*$"
-  mo = re.match(PATTERN, line)
-  assert mo, "Kernel release '{}' does not match regex r'{}'".format(line, PATTERN)
-  return mo.group(1)
-
-
-def _GetKernelReleaseFromFile(filename):
-  """
-  Get GKI kernel release string from the given text file.
-  """
-  assert filename, "--kernel-release-file must be specified if boot is in input"
-  with open(filename) as f:
-    line = f.read().strip()
-    return _GetKernelRelease(line)
 
 
 def CreateOtaFromRawImages(args):
@@ -98,8 +77,10 @@ def CreateOtaFromRawImages(args):
       zip.write(img_path, arcname=os.path.join("IMAGES", name + ".img"))
       names.append(name)
       if name == "boot":
+        timestamp = GetBootImageTimestamp(img_path)
+        assert timestamp is not None, "Cannot extract timestamp from boot image"
         payload_additional_args += ["--partition_timestamps",
-                                    "boot:" + _GetKernelReleaseFromFile(args.kernel_release_file)]
+                                    "boot:" + str(timestamp)]
 
     zip.writestr("META/ab_partitions.txt", "\n".join(names) + "\n")
     zip.writestr("META/dynamic_partitions_info.txt", """
