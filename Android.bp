@@ -65,14 +65,25 @@ apex_key {
     private_key: "com.android.gki.pem",
 }
 
-sh_binary {
+// Use cc_prebuilt_binary because sh_binary does not support product_specific.
+// TODO(b/169954965): Change to sh_binary when product_specific is supported.
+cc_prebuilt_binary {
     name: "com.android.gki.preinstall",
-    src: "preinstall.sh",
+    srcs: ["preinstall.sh"],
+    apex_available: ["com.android.gki.*"],
+    strip: {
+        none: true,
+    },
 }
 
-sh_binary {
+// TODO(b/169954965): Change to sh_binary when product_specific is supported.
+cc_prebuilt_binary {
     name: "com.android.gki.postinstall",
-    src: "postinstall.sh",
+    srcs: ["postinstall.sh"],
+    apex_available: ["com.android.gki.*"],
+    strip: {
+        none: true,
+    },
 }
 
 // Common defaults for all GKI APEXes.
