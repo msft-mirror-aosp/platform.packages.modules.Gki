@@ -104,3 +104,21 @@ cc_binary_host {
         "-Werror",
     ],
 }
+
+// Build GKI APEX 5.4-android12-0 from $(PRODUCT_OUT)/boot.img.
+// Also generate test packages.
+gki_apex {
+    name: "com.android.gki.kmi_5_4_android12_0",
+    installable: true,
+    kmi_version: "5.4-android12-0",
+    product_out_path: "boot.img",
+    gen_test: true,
+}
+
+// Build GKI APEX 5.4-android12-0 from $(PRODUCT_OUT)/boot-5.4.img
+gki_apex {
+    name: "com.android.gki.kmi_5_4_android12_0_boot-5.4",
+    installable: false,
+    kmi_version: "5.4-android12-0",
+    product_out_path: "boot-5.4.img",
+}
