@@ -65,6 +65,8 @@ DEFINE_bool(factory, false,
             "--factory must be set.");
 DEFINE_string(kmi_version, "", "Declared KMI version for this APEX.");
 DEFINE_string(apex_manifest, "", "Output APEX manifest JSON file.");
+DEFINE_uint64(apex_version, GetFactoryApexVersion(),
+              "Override APEX version in APEX manifest. Use factory APEX version if unspecified.");
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -100,7 +102,7 @@ int main(int argc, char** argv) {
   }
 
   std::string apex_name = GetApexName(*kmi_version);
-  uint64_t apex_version = GetFactoryApexVersion();
+  uint64_t apex_version = FLAGS_apex_version;
 
   if (FLAGS_apex_manifest.empty()) {
     LOG(WARNING) << "Skip writing APEX manifest because --apex_manifest is not set.";
