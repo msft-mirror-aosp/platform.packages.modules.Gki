@@ -34,10 +34,10 @@ type dependencyTag struct {
 	name string
 }
 
-// ["foo", "bar"] -> ["${foo}", "${bar}"]
-func toVars(deps []string) []string {
+// {"foo": "fooVal", "bar": "barVal"} -> ["${foo}", "${bar}"]
+func keysToVars(deps map[string]string) []string {
 	ret := []string{}
-	for _, dep := range deps {
+	for dep := range deps {
 		ret = append(ret, fmt.Sprintf("${%s}", dep))
 	}
 	return ret
@@ -49,22 +49,26 @@ var (
 
 	pctx = android.NewPackageContext("android/gki")
 
-	otaFromRawImageDeps = []string{
-		"ota_from_raw_image",
+	otaFromRawImageDeps = map[string]string{
+		"ota_from_raw_image": "ota_from_raw_image",
 
 		// Needed by ota_from_target_files
-		"brillo_update_payload",
+		"brillo_update_payload": "brillo_update_payload",
 
 		// Needed by brillo_update_payload
-		"delta_generator",
+		"delta_generator": "delta_generator",
+		// b/171581299: shflags isn't built to the path where HostBinToolVariable
+		// points to without explicitly declaring it, even if it is stated as
+		// required by brillo_update_payload.
+		"shflags": "lib/shflags/shflags",
 
 		// Needed by GetBootImageTimestamp
-		"lz4",
-		"toybox",
-		"unpack_bootimg",
+		"lz4":            "lz4",
+		"toybox":         "toybox",
+		"unpack_bootimg": "unpack_bootimg",
 	}
 
-	otaFromRawImageVarDeps = toVars(otaFromRawImageDeps)
+	otaFromRawImageVarDeps = keysToVars(otaFromRawImageDeps)
 
 	otaFromRawImageRule = pctx.AndroidStaticRule("ota_from_raw_image", blueprint.RuleParams{
 		Command: `${ota_from_raw_image} --tools ` + strings.Join(otaFromRawImageVarDeps, " ") +
@@ -79,8 +83,8 @@ var (
 )
 
 func init() {
-	for _, dep := range otaFromRawImageDeps {
-		pctx.HostBinToolVariable(dep, dep)
+	for dep := range otaFromRawImageDeps {
+		pctx.HostBinToolVariable(dep, otaFromRawImageDeps[dep])
 	}
 	// Intentionally not register this module so that it can only be constructed by gki_apex.
 }
