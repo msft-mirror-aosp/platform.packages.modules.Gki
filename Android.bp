@@ -122,3 +122,13 @@ gki_apex {
     kmi_version: "5.4-android12-0",
     product_out_path: "boot-5.4.img",
 }
+
+// List of all test APEXes for GkiInstallTest. Append "_test_high" and "_test_low" for each
+// gki_apex with gen_test:true.
+filegroup {
+    name: "gki_install_test_files",
+    srcs: [
+        ":com.android.gki.kmi_5_4_android12_0_test_high",
+        ":com.android.gki.kmi_5_4_android12_0_test_low",
+    ],
+}
