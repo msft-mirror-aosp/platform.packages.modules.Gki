@@ -40,3 +40,12 @@ java_test_host {
     data: [":gki_install_test_files"],
     java_resources: [":gki_install_test_file_list"],
 }
+
+// Prebuilts
+
+prebuilt_gki_apex {
+    name: "com.android.gki.kmi_5_4_android12_0_test_prebuilt",
+    installable: false,
+    kmi_version: "5.4-android12-0",
+    src: "com.android.gki.kmi_5_4_android12_0_test_prebuilt.apex",
+}
