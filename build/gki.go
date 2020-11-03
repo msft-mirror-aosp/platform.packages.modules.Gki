@@ -251,12 +251,8 @@ func (g *gkiApex) boardDefinesKmiVersion(mctx android.EarlyModuleContext) bool {
 	return android.InList(proptools.String(g.properties.Kmi_version), kmiVersions)
 }
 
-// - For factory GKI APEX, write APEX manifest JSON to $(out) for factory APEX.
-//   e.g. 5.4-android12-0 => name: "com.android.gki.kmi_5_4_android12_0", version: factory version.
-//
-// - For real GKI APEX, transform kernel release file in $(in) to KMI version + sublevel.
-//   e.g. 5.4.42-android12-0 => name: "com.android.gki.kmi_5_4_android12_0", version: "42"
-//
+// Transform kernel release file in $(in) to KMI version + sublevel.
+// e.g. 5.4.42-android12-0 => name: "com.android.gki.kmi_5_4_android12_0", version: "300000000"
 // Finally, write APEX manifest JSON to $(out).
 func (g *gkiApex) createApexManifestCmd(apexVersion string) string {
 	ret := `$(location build_gki_apex_manifest) ` +
