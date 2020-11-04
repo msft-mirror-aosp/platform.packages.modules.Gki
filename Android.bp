@@ -59,17 +59,6 @@ cc_prebuilt_binary {
     },
 }
 
-// TODO(b/169954965): Change to sh_binary when product_specific is supported.
-cc_prebuilt_binary {
-    name: "com.android.gki.postinstall",
-    product_specific: true,
-    srcs: ["postinstall.sh"],
-    apex_available: ["com.android.gki.*"],
-    strip: {
-        none: true,
-    },
-}
-
 // Common defaults for all GKI APEXes.
 apex_defaults {
     name: "com.android.gki_defaults",
@@ -77,7 +66,6 @@ apex_defaults {
     binaries: [
         "update_engine_stable_client",
         "com.android.gki.preinstall",
-        "com.android.gki.postinstall",
     ],
     file_contexts: ":com.android.gki-file_contexts",
     // Key to sign apex_payload.img
