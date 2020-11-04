@@ -93,6 +93,10 @@ func (g *gkiApex) validateAndSetMutableProperties(mctx android.LoadHookContext) 
 	g.properties.ApexName = proptools.StringPtr(apexName)
 }
 
+func testApexBundleFactory() android.Module {
+	return apex.ApexBundleFactory(true /* testApex */, false /* art */)
+}
+
 // Create modules for a real APEX package that contains an OTA payload.
 func (g *gkiApex) createModulesRealApexes(mctx android.LoadHookContext) {
 	// Import $(PRODUCT_OUT)/boot.img to Soong
@@ -141,19 +145,19 @@ func (g *gkiApex) createModulesRealApexes(mctx android.LoadHookContext) {
 		Installable:           proptools.BoolPtr(false),
 	})
 	// Create the APEX module with name g.moduleName(). Use factory APEX version.
-	g.createModulesRealApex(mctx, g.moduleName(), g.properties.Installable, "")
+	g.createModulesRealApex(mctx, g.moduleName(), false, "")
 
 	// Create test APEX modules if gen_test. Test packages are not installable.
 	// Use hard-coded APEX version.
 	if proptools.Bool(g.properties.Gen_test) {
-		g.createModulesRealApex(mctx, g.moduleName()+"_test_high", proptools.BoolPtr(false), "1000000000")
-		g.createModulesRealApex(mctx, g.moduleName()+"_test_low", proptools.BoolPtr(false), "1")
+		g.createModulesRealApex(mctx, g.moduleName()+"_test_high", true, "1000000000")
+		g.createModulesRealApex(mctx, g.moduleName()+"_test_low", true, "1")
 	}
 }
 
 func (g *gkiApex) createModulesRealApex(mctx android.LoadHookContext,
 	moduleName string,
-	overrideInstallable *bool,
+	isTestApex bool,
 	overrideApexVersion string) {
 	// Check kmi_version property against kernel_release.txt, then
 	// kernel_release.txt -> apex_manifest.json.
@@ -167,8 +171,32 @@ func (g *gkiApex) createModulesRealApex(mctx android.LoadHookContext,
 		Srcs:  []string{":" + g.kernelReleaseFileName()},
 		Cmd:   proptools.StringPtr(g.createApexManifestCmd(overrideApexVersion)),
 	})
+
 	// The APEX module.
-	mctx.CreateModule(apex.BundleFactory, &moduleCommonProperties{
+
+	// For test APEXes, if module is not enabled because KMI version is not
+	// compatible with the device, create a stub module that produces an empty
+	// file. This is so that the module name can be used in tests.
+	if isTestApex && !g.properties.ModulesEnabled {
+		mctx.CreateModule(genrule.GenRuleFactory, &moduleCommonProperties{
+			Name: proptools.StringPtr(moduleName),
+		}, &genRuleProperties{
+			Out: []string{moduleName + ".apex"},
+			Cmd: proptools.StringPtr(`touch $(out)`),
+		})
+		return
+	}
+
+	// For test APEXes, if module is enabled, build an apex_test with installable: false.
+	// For installed APEXes, build apex, respecting installable and enabled.
+	apexFactory := apex.BundleFactory
+	overrideInstallable := g.properties.Installable
+	if isTestApex {
+		apexFactory = testApexBundleFactory
+		overrideInstallable = proptools.BoolPtr(false)
+	}
+
+	mctx.CreateModule(apexFactory, &moduleCommonProperties{
 		Name:    proptools.StringPtr(moduleName),
 		Enabled: proptools.BoolPtr(g.properties.ModulesEnabled),
 	}, &apexProperties{
@@ -251,12 +279,8 @@ func (g *gkiApex) boardDefinesKmiVersion(mctx android.EarlyModuleContext) bool {
 	return android.InList(proptools.String(g.properties.Kmi_version), kmiVersions)
 }
 
-// - For factory GKI APEX, write APEX manifest JSON to $(out) for factory APEX.
-//   e.g. 5.4-android12-0 => name: "com.android.gki.kmi_5_4_android12_0", version: factory version.
-//
-// - For real GKI APEX, transform kernel release file in $(in) to KMI version + sublevel.
-//   e.g. 5.4.42-android12-0 => name: "com.android.gki.kmi_5_4_android12_0", version: "42"
-//
+// Transform kernel release file in $(in) to KMI version + sublevel.
+// e.g. 5.4.42-android12-0 => name: "com.android.gki.kmi_5_4_android12_0", version: "300000000"
 // Finally, write APEX manifest JSON to $(out).
 func (g *gkiApex) createApexManifestCmd(apexVersion string) string {
 	ret := `$(location build_gki_apex_manifest) ` +
