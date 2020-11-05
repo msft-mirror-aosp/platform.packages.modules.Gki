@@ -20,20 +20,22 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.io.FileMatchers.aFileWithSize;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeThat;
+import static org.junit.Assert.fail;
 
-import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.toList;
 
 import android.cts.host.utils.DeviceJUnit4ClassRunnerWithParameters;
 import android.cts.host.utils.DeviceJUnit4Parameterized;
 
 import com.android.compatibility.common.tradefed.build.CompatibilityBuildHelper;
 import com.android.tradefed.device.ITestDevice;
+import com.android.tradefed.device.ITestDevice.ApexInfo;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 
 import org.junit.After;
@@ -54,8 +56,10 @@ import java.util.Set;
 @UseParametersRunnerFactory(DeviceJUnit4ClassRunnerWithParameters.RunnerFactory.class)
 public class GkiInstallTest extends BaseHostJUnit4Test {
 
+    // Keep in sync with gki.go.
     private static final String HIGH_SUFFIX = "_test_high.apex";
     private static final String LOW_SUFFIX = "_test_low.apex";
+    private static final long TEST_HIGH_VERSION = 1000000000L;
 
     @Parameter
     public String mFileName;
@@ -89,10 +93,9 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         }
 
         // Skip if the device does not support this APEX package.
-        ITestDevice device = getDevice();
-        Set<String> installedApexes =
-                device.getActiveApexes().stream().map(apexInfo -> apexInfo.name).collect(toSet());
-        assumeThat(installedApexes, hasItem(mPackageName));
+        ApexInfo oldApexInfo = getGkiApexInfo();
+        assumeThat(oldApexInfo, is(notNullValue()));
+        assumeThat(oldApexInfo.name, is(mPackageName));
 
         // Find the APEX file.
         CompatibilityBuildHelper buildHelper = new CompatibilityBuildHelper(getBuild());
@@ -101,24 +104,45 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         // There may be empty .apex files in the directory for disabled APEXes. But if the device
         // is known to install the package, the test must be built with non-empty APEXes for this
         // particular package.
-        assertThat(mApexFile, is(aFileWithSize(greaterThan(0L))));
+        assertThat("Test is not built properly. It does not contain a non-empty " + mFileName,
+                mApexFile, is(aFileWithSize(greaterThan(0L))));
     }
 
     @Test
     public void testInstallAndReboot() throws Exception {
         String result = getDevice().installPackage(mApexFile, false);
-        if (mExpectInstallSuccess) {
-            assertNull("Installation failed with " + result, result);
-        } else {
+        if (!mExpectInstallSuccess) {
             assertNotNull("Should not be able to install downgrade package", result);
             assertThat(result, containsString("Downgrade of APEX package " + mPackageName +
                     " is not allowed."));
+            return;
         }
+
+        assertNull("Installation failed with " + result, result);
+        getDevice().reboot();
+
+        ApexInfo newApexInfo = getGkiApexInfo();
+        assertNotNull(newApexInfo);
+        assertThat(newApexInfo.versionCode, is(TEST_HIGH_VERSION));
     }
 
     // Reboot device no matter what to avoid interference.
     @After
     public void tearDown() throws Exception {
         getDevice().reboot();
+    }
+
+    /**
+     * @return The {@link ApexInfo} of the GKI APEX named {@code mPackageName} on the device, or
+     * {@code null} if the device does not have a GKI APEX installed.
+     * @throws Exception an error has occurred.
+     */
+    private ApexInfo getGkiApexInfo() throws Exception {
+        assertNotNull(mPackageName);
+        List<ApexInfo> list = getDevice().getActiveApexes().stream().filter(
+                apexInfo -> mPackageName.equals(apexInfo.name)).collect(toList());
+        if (list.isEmpty()) return null;
+        assertThat(list.size(), is(1));
+        return list.get(0);
     }
 }
