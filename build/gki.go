@@ -274,9 +274,13 @@ func (g *gkiApex) bootImgHasRules(mctx android.EarlyModuleContext) bool {
 //   gki_apex { name: "boot-kmi-2", kmi_version: "2", product_out_path: "boot.img" }
 // But a given device's $PRODUCT_OUT/boot.img can only support at most one KMI version.
 // Disable some modules accordingly to make sure checkbuild still works.
-func (g *gkiApex) boardDefinesKmiVersion(mctx android.EarlyModuleContext) bool {
+func boardDefinesKmiVersion(mctx android.EarlyModuleContext, kmiVersion string) bool {
 	kmiVersions := mctx.DeviceConfig().BoardKernelModuleInterfaceVersions()
-	return android.InList(proptools.String(g.properties.Kmi_version), kmiVersions)
+	return android.InList(kmiVersion, kmiVersions)
+}
+
+func (g *gkiApex) boardDefinesKmiVersion(mctx android.EarlyModuleContext) bool {
+	return boardDefinesKmiVersion(mctx, proptools.String(g.properties.Kmi_version))
 }
 
 // Transform kernel release file in $(in) to KMI version + sublevel.

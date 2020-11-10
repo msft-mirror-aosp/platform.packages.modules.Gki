@@ -15,9 +15,10 @@
 package gki
 
 type moduleCommonProperties struct {
-	Name     *string
-	Enabled  *bool
-	Required []string
+	Name             *string
+	Enabled          *bool
+	Required         []string
+	Product_specific *bool
 }
 
 type makefileGoalProperties struct {
