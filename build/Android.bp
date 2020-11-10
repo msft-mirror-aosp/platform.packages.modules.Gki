@@ -27,6 +27,7 @@ bootstrap_go_package {
     srcs: [
         "gki.go",
         "kmi.go",
+        "prebuilt.go",
         "properties.go",
         "raw_img_ota.go",
     ],
