@@ -20,6 +20,7 @@ package gki
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"android/soong/android"
@@ -36,10 +37,11 @@ type dependencyTag struct {
 
 // {"foo": "fooVal", "bar": "barVal"} -> ["${foo}", "${bar}"]
 func keysToVars(deps map[string]string) []string {
-	ret := []string{}
+	var ret []string
 	for dep := range deps {
 		ret = append(ret, fmt.Sprintf("${%s}", dep))
 	}
+	sort.Strings(ret)
 	return ret
 }
 
