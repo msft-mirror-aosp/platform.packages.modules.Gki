@@ -103,15 +103,15 @@ func (g *prebuiltGkiApex) GenerateAndroidBuildActions(ctx android.ModuleContext)
 	genDir := android.PathForModuleOut(ctx, "extracted")
 	g.extractedBootImage = genDir.Join(ctx, "boot.img")
 
-	rule := android.NewRuleBuilder()
+	rule := android.NewRuleBuilder(pctx, ctx)
 	rule.Command().
 		ImplicitOutput(g.extractedBootImage).
-		BuiltTool(ctx, "extract_img_from_apex").
-		Flag("--tool").BuiltTool(ctx, "debugfs").
-		Flag("--tool").BuiltTool(ctx, "delta_generator").
+		BuiltTool("extract_img_from_apex").
+		Flag("--tool").BuiltTool("debugfs").
+		Flag("--tool").BuiltTool("delta_generator").
 		Input(apexFile.Path()).
 		Text(genDir.String())
-	rule.Build(pctx, ctx, "extractImgFromApex", "Extract boot image from prebuilt GKI APEX")
+	rule.Build("extractImgFromApex", "Extract boot image from prebuilt GKI APEX")
 
 	ctx.Phony(g.BaseModuleName(), g.extractedBootImage)
 }
