@@ -25,6 +25,7 @@ import static org.hamcrest.io.FileMatchers.aFileWithSize;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assert.fail;
 
@@ -36,6 +37,7 @@ import android.cts.host.utils.DeviceJUnit4Parameterized;
 import com.android.compatibility.common.tradefed.build.CompatibilityBuildHelper;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.ITestDevice.ApexInfo;
+import com.android.tradefed.log.LogUtil.CLog;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 
 import org.junit.After;
@@ -60,6 +62,11 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     private static final String HIGH_SUFFIX = "_test_high.apex";
     private static final String LOW_SUFFIX = "_test_low.apex";
     private static final long TEST_HIGH_VERSION = 1000000000L;
+
+    // Timeout between device online for adb commands and boot completed flag is set.
+    private static final long BOOT_COMPLETE_TIMEOUT_MS = 180000; // 3mins
+    // Timeout for `adb install`.
+    private static final long INSTALL_TIMEOUT_MS = 600000; // 10mins
 
     @Parameter
     public String mFileName;
@@ -92,7 +99,12 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
             fail("Unrecognized test data file: " + mFileName);
         }
 
+        CLog.i("Wait for device to boot complete for " + BOOT_COMPLETE_TIMEOUT_MS + " ms...");
+        assertTrue("Device did not come up after " + BOOT_COMPLETE_TIMEOUT_MS + " ms",
+                getDevice().waitForBootComplete(BOOT_COMPLETE_TIMEOUT_MS));
+
         // Skip if the device does not support this APEX package.
+        CLog.i("Checking if " + mPackageName + " is installed on the device.");
         ApexInfo oldApexInfo = getGkiApexInfo();
         assumeThat(oldApexInfo, is(notNullValue()));
         assumeThat(oldApexInfo.name, is(mPackageName));
@@ -110,7 +122,9 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
 
     @Test
     public void testInstallAndReboot() throws Exception {
-        String result = getDevice().installPackage(mApexFile, false);
+        CLog.i("Installing " + mApexFile + " with " + INSTALL_TIMEOUT_MS + " ms timeout");
+        String result = getDevice().installPackage(mApexFile, false,
+                "--staged-ready-timeout", String.valueOf(INSTALL_TIMEOUT_MS));
         if (!mExpectInstallSuccess) {
             assertNotNull("Should not be able to install downgrade package", result);
             assertThat(result, containsString("Downgrade of APEX package " + mPackageName +
@@ -120,6 +134,10 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
 
         assertNull("Installation failed with " + result, result);
         getDevice().reboot();
+
+        CLog.i("Wait for device to boot complete for " + BOOT_COMPLETE_TIMEOUT_MS + " ms...");
+        assertTrue("Device did not come up after " + BOOT_COMPLETE_TIMEOUT_MS + " ms",
+                getDevice().waitForBootComplete(BOOT_COMPLETE_TIMEOUT_MS));
 
         ApexInfo newApexInfo = getGkiApexInfo();
         assertNotNull(newApexInfo);
