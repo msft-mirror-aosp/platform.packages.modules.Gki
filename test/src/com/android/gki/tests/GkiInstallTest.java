@@ -99,12 +99,12 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
             fail("Unrecognized test data file: " + mFileName);
         }
 
-        CLog.i("Wait for device to boot complete for " + BOOT_COMPLETE_TIMEOUT_MS + " ms...");
+        CLog.i("Wait for device to boot complete for %d ms...", BOOT_COMPLETE_TIMEOUT_MS);
         assertTrue("Device did not come up after " + BOOT_COMPLETE_TIMEOUT_MS + " ms",
                 getDevice().waitForBootComplete(BOOT_COMPLETE_TIMEOUT_MS));
 
         // Skip if the device does not support this APEX package.
-        CLog.i("Checking if " + mPackageName + " is installed on the device.");
+        CLog.i("Checking if %s is installed on the device.", mPackageName);
         ApexInfo oldApexInfo = getGkiApexInfo();
         assumeThat(oldApexInfo, is(notNullValue()));
         assumeThat(oldApexInfo.name, is(mPackageName));
@@ -122,7 +122,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
 
     @Test
     public void testInstallAndReboot() throws Exception {
-        CLog.i("Installing " + mApexFile + " with " + INSTALL_TIMEOUT_MS + " ms timeout");
+        CLog.i("Installing %s with %d ms timeout", mApexFile, INSTALL_TIMEOUT_MS);
         String result = getDevice().installPackage(mApexFile, false,
                 "--staged-ready-timeout", String.valueOf(INSTALL_TIMEOUT_MS));
         if (!mExpectInstallSuccess) {
@@ -135,7 +135,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         assertNull("Installation failed with " + result, result);
         getDevice().reboot();
 
-        CLog.i("Wait for device to boot complete for " + BOOT_COMPLETE_TIMEOUT_MS + " ms...");
+        CLog.i("Wait for device to boot complete for %d ms...", BOOT_COMPLETE_TIMEOUT_MS);
         assertTrue("Device did not come up after " + BOOT_COMPLETE_TIMEOUT_MS + " ms",
                 getDevice().waitForBootComplete(BOOT_COMPLETE_TIMEOUT_MS));
 
