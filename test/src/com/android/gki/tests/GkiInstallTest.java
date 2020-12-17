@@ -105,7 +105,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
 
         // Skip if the device does not support this APEX package.
         CLog.i("Checking if %s is installed on the device.", mPackageName);
-        ApexInfo oldApexInfo = getGkiApexInfo();
+        ApexInfo oldApexInfo = getApexInfo(getDevice(), mPackageName);
         assumeThat(oldApexInfo, is(notNullValue()));
         assumeThat(oldApexInfo.name, is(mPackageName));
 
@@ -139,7 +139,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         assertTrue("Device did not come up after " + BOOT_COMPLETE_TIMEOUT_MS + " ms",
                 getDevice().waitForBootComplete(BOOT_COMPLETE_TIMEOUT_MS));
 
-        ApexInfo newApexInfo = getGkiApexInfo();
+        ApexInfo newApexInfo = getApexInfo(getDevice(), mPackageName);
         assertNotNull(newApexInfo);
         assertThat(newApexInfo.versionCode, is(TEST_HIGH_VERSION));
     }
@@ -151,14 +151,17 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     }
 
     /**
-     * @return The {@link ApexInfo} of the GKI APEX named {@code mPackageName} on the device, or
-     * {@code null} if the device does not have a GKI APEX installed.
+     * @param device the device under test
+     * @param packageName the package name to look for
+     * @return The {@link ApexInfo} of the APEX named {@code packageName} on the
+     * {@code device}, or {@code null} if the device does not have the APEX installed.
      * @throws Exception an error has occurred.
      */
-    private ApexInfo getGkiApexInfo() throws Exception {
-        assertNotNull(mPackageName);
-        List<ApexInfo> list = getDevice().getActiveApexes().stream().filter(
-                apexInfo -> mPackageName.equals(apexInfo.name)).collect(toList());
+    private static ApexInfo getApexInfo(ITestDevice device, String packageName)
+            throws Exception {
+        assertNotNull(packageName);
+        List<ApexInfo> list = device.getActiveApexes().stream().filter(
+                apexInfo -> packageName.equals(apexInfo.name)).collect(toList());
         if (list.isEmpty()) return null;
         assertThat(list.size(), is(1));
         return list.get(0);
