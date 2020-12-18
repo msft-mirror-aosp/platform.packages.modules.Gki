@@ -64,7 +64,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     private static final long TEST_HIGH_VERSION = 1000000000L;
 
     // Timeout between device online for adb commands and boot completed flag is set.
-    private static final long BOOT_COMPLETE_TIMEOUT_MS = 180000; // 3mins
+    private static final long DEVICE_AVAIL_TIMEOUT_MS = 180000; // 3mins
     // Timeout for `adb install`.
     private static final long INSTALL_TIMEOUT_MS = 600000; // 10mins
 
@@ -99,9 +99,9 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
             fail("Unrecognized test data file: " + mFileName);
         }
 
-        CLog.i("Wait for device to boot complete for %d ms...", BOOT_COMPLETE_TIMEOUT_MS);
-        assertTrue("Device did not come up after " + BOOT_COMPLETE_TIMEOUT_MS + " ms",
-                getDevice().waitForBootComplete(BOOT_COMPLETE_TIMEOUT_MS));
+        CLog.i("Wait for device to be available for %d ms...", DEVICE_AVAIL_TIMEOUT_MS);
+        getDevice().waitForDeviceAvailable(DEVICE_AVAIL_TIMEOUT_MS);
+        CLog.i("Device is available after %d ms", DEVICE_AVAIL_TIMEOUT_MS);
 
         // Skip if the device does not support this APEX package.
         CLog.i("Checking if %s is installed on the device.", mPackageName);
@@ -133,11 +133,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         }
 
         assertNull("Installation failed with " + result, result);
-        getDevice().reboot();
-
-        CLog.i("Wait for device to boot complete for %d ms...", BOOT_COMPLETE_TIMEOUT_MS);
-        assertTrue("Device did not come up after " + BOOT_COMPLETE_TIMEOUT_MS + " ms",
-                getDevice().waitForBootComplete(BOOT_COMPLETE_TIMEOUT_MS));
+        rebootUntilAvailable(getDevice(), DEVICE_AVAIL_TIMEOUT_MS);
 
         ApexInfo newApexInfo = getApexInfo(getDevice(), mPackageName);
         assertNotNull(newApexInfo);
@@ -147,7 +143,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     // Reboot device no matter what to avoid interference.
     @After
     public void tearDown() throws Exception {
-        getDevice().reboot();
+        rebootUntilAvailable(getDevice(), DEVICE_AVAIL_TIMEOUT_MS);
     }
 
     /**
@@ -165,5 +161,22 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         if (list.isEmpty()) return null;
         assertThat(list.size(), is(1));
         return list.get(0);
+    }
+
+    /**
+     * Similar to device.reboot(), but with a timeout on waitForDeviceAvailable. Note that
+     * the timeout does not include the rebootUntilOnline() call.
+     *
+     * @param device    the device under test
+     * @param timeoutMs timeout for waitForDeviceAvailable() call
+     * @throws Exception an error has occurred.
+     */
+    private static void rebootUntilAvailable(ITestDevice device, long timeoutMs)
+            throws Exception {
+        CLog.i("Reboot and waiting for device to be online");
+        device.rebootUntilOnline();
+        CLog.i("Device online, wait for device to be available for %d ms...", timeoutMs);
+        device.waitForDeviceAvailable(timeoutMs);
+        CLog.i("Device is available after %d ms", timeoutMs);
     }
 }
