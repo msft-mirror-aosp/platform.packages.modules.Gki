@@ -80,7 +80,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     private String mPackageName;
     private File mApexFile;
     private boolean mExpectInstallSuccess;
-    private Set<String> mOverlayfs;
+    private final Set<String> mOverlayfs = new HashSet();
 
     @Parameters(name = "{0}")
     public static Iterable<String> getTestFileNames() {
@@ -151,7 +151,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
      * with the same permission before it is called.
      */
     private void prepareOverlayfs() throws Exception {
-        mOverlayfs = getOverlayfsState(getDevice());
+        mOverlayfs.addAll(getOverlayfsState(getDevice()));
 
         if (!mOverlayfs.isEmpty()) {
             getDevice().enableAdbRoot();
@@ -194,11 +194,11 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     public void tearDown() throws Exception {
         // Restore overlayfs for partitions that the test knows of.
         CLog.i("Test ends, now restoring overlayfs partitions %s.", mOverlayfs);
-        if (mOverlayfs != null && mOverlayfs.contains("system")) {
+        if (mOverlayfs.contains("system")) {
             getDevice().enableAdbRoot();
             getDevice().remountSystemWritable();
         }
-        if (mOverlayfs != null && mOverlayfs.contains("vendor")) {
+        if (mOverlayfs.contains("vendor")) {
             getDevice().enableAdbRoot();
             getDevice().remountVendorWritable();
         }
