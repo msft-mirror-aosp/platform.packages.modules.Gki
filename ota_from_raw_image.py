@@ -28,7 +28,6 @@ from zipfile import ZipFile
 
 import common
 from ota_from_target_files import (Payload, PayloadSigner)
-from ota_utils import GetBootImageTimestamp
 
 logger = logging.getLogger(__name__)
 OPTIONS = common.OPTIONS
@@ -77,7 +76,7 @@ def CreateOtaFromRawImages(args):
       zip.write(img_path, arcname=os.path.join("IMAGES", name + ".img"))
       names.append(name)
       if name == "boot":
-        timestamp = GetBootImageTimestamp(img_path)
+        timestamp = common.GetBootImageTimestamp(img_path)
         assert timestamp is not None, "Cannot extract timestamp from boot image"
         payload_additional_args += ["--partition_timestamps",
                                     "boot:" + str(timestamp)]
