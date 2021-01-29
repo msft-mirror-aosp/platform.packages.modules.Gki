@@ -30,16 +30,11 @@ using android::kver::KmiVersion;
 
 namespace {
 
-int CheckKmi(const KernelRelease& kernel_release, const std::string& kmi_version) {
-  const auto& actual_kmi_version = kernel_release.kmi_version().string();
+int CheckKmi(const KernelRelease& kernel_release, const KmiVersion& kmi_version) {
+  const auto& actual_kmi_version = kernel_release.kmi_version();
   if (actual_kmi_version != kmi_version) {
-    LOG(ERROR) << "KMI version does not match. Actual: " << actual_kmi_version
-               << ", expected: " << kmi_version;
-    return EX_SOFTWARE;
-  }
-  if (kernel_release.sub_level() == GetFactoryApexVersion()) {
-    LOG(ERROR) << "Kernel release is " << kernel_release.string() << ". Sub-level "
-               << GetFactoryApexVersion() << " is reserved for factory GKI APEX.";
+    LOG(ERROR) << "KMI version does not match. Actual: " << actual_kmi_version.string()
+               << ", expected: " << kmi_version.string();
     return EX_SOFTWARE;
   }
   return EX_OK;
@@ -51,7 +46,6 @@ int WriteApexManifest(const std::string& apex_name, Json::UInt64 apex_version,
   root["name"] = apex_name;
   root["version"] = apex_version;
   root["preInstallHook"] = "bin/com.android.gki.preinstall";
-  root["postInstallHook"] = "bin/com.android.gki.postinstall";
   std::string json_string = Json::StyledWriter().write(root);
   if (!android::base::WriteStringToFile(json_string, out_file)) {
     PLOG(ERROR) << "Cannot write to " << out_file;
@@ -70,6 +64,8 @@ DEFINE_bool(factory, false,
             "--factory must be set.");
 DEFINE_string(kmi_version, "", "Declared KMI version for this APEX.");
 DEFINE_string(apex_manifest, "", "Output APEX manifest JSON file.");
+DEFINE_uint64(apex_version, GetFactoryApexVersion(),
+              "Override APEX version in APEX manifest. Use factory APEX version if unspecified.");
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -89,12 +85,7 @@ int main(int argc, char** argv) {
     return EX_SOFTWARE;
   }
 
-  std::string apex_name;
-  uint64_t apex_version;
-  if (FLAGS_factory) {
-    apex_name = GetApexName(*kmi_version);
-    apex_version = GetFactoryApexVersion();
-  } else {
+  if (!FLAGS_kernel_release_file.empty()) {
     std::string kernel_release_string;
     if (!android::base::ReadFileToString(FLAGS_kernel_release_file, &kernel_release_string)) {
       PLOG(ERROR) << "Cannot read " << FLAGS_kernel_release_file;
@@ -105,12 +96,12 @@ int main(int argc, char** argv) {
       LOG(ERROR) << kernel_release_string << " is not a valid GKI kernel release string";
       return EX_SOFTWARE;
     }
-    int res = CheckKmi(*kernel_release, FLAGS_kmi_version);
+    int res = CheckKmi(*kernel_release, *kmi_version);
     if (res != EX_OK) return res;
-
-    apex_name = GetApexName(kernel_release->kmi_version());
-    apex_version = GetApexVersion(*kernel_release);
   }
+
+  std::string apex_name = GetApexName(*kmi_version);
+  uint64_t apex_version = FLAGS_apex_version;
 
   if (FLAGS_apex_manifest.empty()) {
     LOG(WARNING) << "Skip writing APEX manifest because --apex_manifest is not set.";

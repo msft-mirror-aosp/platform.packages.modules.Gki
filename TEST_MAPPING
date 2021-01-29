@@ -1,8 +1,14 @@
 {
   "presubmit": [
     {
-      "name": "ota_from_raw_image_test",
+      "name": "libkver_test"
+    },
+    {
+      "name": "libkver_test",
       "host": true
+    },
+    {
+      "name": "GkiInstallTest"
     }
   ]
 }
