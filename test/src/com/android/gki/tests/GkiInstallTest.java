@@ -17,14 +17,17 @@
 package com.android.gki.tests;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isIn;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.io.FileMatchers.aFileWithSize;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assert.fail;
 
@@ -36,6 +39,7 @@ import android.cts.host.utils.DeviceJUnit4Parameterized;
 import com.android.compatibility.common.tradefed.build.CompatibilityBuildHelper;
 import com.android.tradefed.device.ITestDevice;
 import com.android.tradefed.device.ITestDevice.ApexInfo;
+import com.android.tradefed.log.LogUtil.CLog;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 
 import org.junit.After;
@@ -46,9 +50,13 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 import org.junit.runners.Parameterized.UseParametersRunnerFactory;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Scanner;
 import java.util.Set;
 
@@ -61,12 +69,18 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     private static final String LOW_SUFFIX = "_test_low.apex";
     private static final long TEST_HIGH_VERSION = 1000000000L;
 
+    // Timeout between device online for adb commands and boot completed flag is set.
+    private static final long DEVICE_AVAIL_TIMEOUT_MS = 180000; // 3mins
+    // Timeout for `adb install`.
+    private static final long INSTALL_TIMEOUT_MS = 600000; // 10mins
+
     @Parameter
     public String mFileName;
 
     private String mPackageName;
     private File mApexFile;
     private boolean mExpectInstallSuccess;
+    private final Set<String> mOverlayfs = new HashSet();
 
     @Parameters(name = "{0}")
     public static Iterable<String> getTestFileNames() {
@@ -81,7 +95,14 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
 
     @Before
     public void setUp() throws Exception {
-        // Infer package name from file name.
+        inferPackageName();
+        skipTestIfPackageNotInstalled();
+        findTestApexFile();
+        prepareOverlayfs();
+    }
+
+    /** Set mPackageName and mExpectInstallSuccess according to mFileName. */
+    private void inferPackageName() throws Exception {
         if (mFileName.endsWith(HIGH_SUFFIX)) {
             mPackageName = mFileName.substring(0, mFileName.length() - HIGH_SUFFIX.length());
             mExpectInstallSuccess = true;
@@ -91,12 +112,23 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         } else {
             fail("Unrecognized test data file: " + mFileName);
         }
+    }
+
+    /** Skip the test if mPackageName is not installed on the device. */
+    private void skipTestIfPackageNotInstalled() throws Exception {
+        CLog.i("Wait for device to be available for %d ms...", DEVICE_AVAIL_TIMEOUT_MS);
+        getDevice().waitForDeviceAvailable(DEVICE_AVAIL_TIMEOUT_MS);
+        CLog.i("Device is available after %d ms", DEVICE_AVAIL_TIMEOUT_MS);
 
         // Skip if the device does not support this APEX package.
-        ApexInfo oldApexInfo = getGkiApexInfo();
+        CLog.i("Checking if %s is installed on the device.", mPackageName);
+        ApexInfo oldApexInfo = getApexInfo(getDevice(), mPackageName);
         assumeThat(oldApexInfo, is(notNullValue()));
         assumeThat(oldApexInfo.name, is(mPackageName));
+    }
 
+    /** Find the corresponding APEX test file with mFileName. */
+    private void findTestApexFile() throws Exception {
         // Find the APEX file.
         CompatibilityBuildHelper buildHelper = new CompatibilityBuildHelper(getBuild());
         mApexFile = buildHelper.getTestFile(mFileName);
@@ -108,9 +140,31 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
                 mApexFile, is(aFileWithSize(greaterThan(0L))));
     }
 
+    /**
+     * Record what partitions have overlayfs set up. Then, tear down overlayfs because it may
+     * make OTA fail.
+     *
+     * Usually, the test does not require root to run, but if the device has overlayfs set up,
+     * the test assumes that the device has root functionality, and attempts to tear down
+     * overlayfs before the test starts.
+     * Note that this function immediately reboots after enabling adb root to ensure the test runs
+     * with the same permission before it is called.
+     */
+    private void prepareOverlayfs() throws Exception {
+        mOverlayfs.addAll(getOverlayfsState(getDevice()));
+
+        if (!mOverlayfs.isEmpty()) {
+            getDevice().enableAdbRoot();
+            getDevice().executeAdbCommand("enable-verity");
+            rebootUntilAvailable(getDevice(), DEVICE_AVAIL_TIMEOUT_MS);
+        }
+    }
+
     @Test
     public void testInstallAndReboot() throws Exception {
-        String result = getDevice().installPackage(mApexFile, false);
+        CLog.i("Installing %s with %d ms timeout", mApexFile, INSTALL_TIMEOUT_MS);
+        String result = getDevice().installPackage(mApexFile, false,
+                "--staged-ready-timeout", String.valueOf(INSTALL_TIMEOUT_MS));
         if (!mExpectInstallSuccess) {
             assertNotNull("Should not be able to install downgrade package", result);
             assertThat(result, containsString("Downgrade of APEX package " + mPackageName +
@@ -119,30 +173,105 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         }
 
         assertNull("Installation failed with " + result, result);
-        getDevice().reboot();
+        rebootUntilAvailable(getDevice(), DEVICE_AVAIL_TIMEOUT_MS);
 
-        ApexInfo newApexInfo = getGkiApexInfo();
+        ApexInfo newApexInfo = getApexInfo(getDevice(), mPackageName);
         assertNotNull(newApexInfo);
         assertThat(newApexInfo.versionCode, is(TEST_HIGH_VERSION));
     }
 
-    // Reboot device no matter what to avoid interference.
+    /**
+     * Restore overlayfs on partitions.
+     *
+     * Usually, tearDown() does not require root to run, but if the device had overlayfs set up
+     * before the test has started,
+     * the test assumes that the device has root functionality, and attempts to re-set up
+     * overlayfs after the test ends.
+     * Note that tearDown() immediately reboots after enabling adb root to ensure the test ends up
+     * with the same permission before the test has started.
+     */
     @After
     public void tearDown() throws Exception {
-        getDevice().reboot();
+        // Restore overlayfs for partitions that the test knows of.
+        CLog.i("Test ends, now restoring overlayfs partitions %s.", mOverlayfs);
+        if (mOverlayfs.contains("system")) {
+            getDevice().enableAdbRoot();
+            getDevice().remountSystemWritable();
+        }
+        if (mOverlayfs.contains("vendor")) {
+            getDevice().enableAdbRoot();
+            getDevice().remountVendorWritable();
+        }
+        CLog.i("Restoring overlayfs partition ends, now rebooting.");
+
+        // Reboot device no matter what to avoid interference.
+        rebootUntilAvailable(getDevice(), DEVICE_AVAIL_TIMEOUT_MS);
+
+        // remount*Writable should have enabled overlayfs for all necessary partitions. If not,
+        // throw an error.
+        Set<String> newOverlayfsState = getOverlayfsState(getDevice());
+        assertThat("Some partitions did not restore overlayfs properly. Before test: " + mOverlayfs
+                        + ", after test: " + newOverlayfsState, mOverlayfs,
+                everyItem(isIn(newOverlayfsState)));
+        CLog.i("All overlayfs states are restored.");
     }
 
     /**
-     * @return The {@link ApexInfo} of the GKI APEX named {@code mPackageName} on the device, or
-     * {@code null} if the device does not have a GKI APEX installed.
+     * @param device the device under test
+     * @param packageName the package name to look for
+     * @return The {@link ApexInfo} of the APEX named {@code packageName} on the
+     * {@code device}, or {@code null} if the device does not have the APEX installed.
      * @throws Exception an error has occurred.
      */
-    private ApexInfo getGkiApexInfo() throws Exception {
-        assertNotNull(mPackageName);
-        List<ApexInfo> list = getDevice().getActiveApexes().stream().filter(
-                apexInfo -> mPackageName.equals(apexInfo.name)).collect(toList());
+    private static ApexInfo getApexInfo(ITestDevice device, String packageName)
+            throws Exception {
+        assertNotNull(packageName);
+        List<ApexInfo> list = device.getActiveApexes().stream().filter(
+                apexInfo -> packageName.equals(apexInfo.name)).collect(toList());
         if (list.isEmpty()) return null;
         assertThat(list.size(), is(1));
         return list.get(0);
+    }
+
+    /**
+     * Similar to device.reboot(), but with a timeout on waitForDeviceAvailable. Note that
+     * the timeout does not include the rebootUntilOnline() call.
+     *
+     * @param device    the device under test
+     * @param timeoutMs timeout for waitForDeviceAvailable() call
+     * @throws Exception an error has occurred.
+     */
+    private static void rebootUntilAvailable(ITestDevice device, long timeoutMs)
+            throws Exception {
+        CLog.i("Reboot and waiting for device to be online");
+        device.rebootUntilOnline();
+        CLog.i("Device online, wait for device to be available for %d ms...", timeoutMs);
+        device.waitForDeviceAvailable(timeoutMs);
+        CLog.i("Device is available after %d ms", timeoutMs);
+    }
+    
+    /**
+     * Get all partitions that have overlayfs setup. Parse /proc/mounts and if it finds lines like:
+     * {@code overlayfs /vendor ...}, then put {@code vendor} in the returned set.
+     * @param device the device under test
+     * @return a list of partitions like {@code system}, {@code vendor} that has overlayfs set up
+     * @throws Exception an error has occurred.
+     */
+    private static Set<String> getOverlayfsState(ITestDevice device) throws Exception {
+        Set<String> ret = new HashSet();
+        File mounts = device.pullFile("/proc/mounts");
+        try (Scanner scanner = new Scanner(mounts)) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                String[] tokens = line.split("\\s");
+                if (tokens.length < 2) continue;
+                if (!"overlay".equals(tokens[0])) continue;
+                Path path = Paths.get(tokens[1]);
+                if (path.getNameCount() == 0) continue;
+                ret.add(path.getName(0).toString());
+            }
+        }
+        CLog.i("Device has overlayfs set up on partitions %s", ret);
+        return ret;
     }
 }
