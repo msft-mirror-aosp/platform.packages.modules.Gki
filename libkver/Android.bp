@@ -13,6 +13,10 @@
 // limitations under the License.
 
 // A library to parse kernel versions, including kernel releases and KMI versions.
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 cc_defaults {
     name: "libkver-defaults",
     cflags: [
