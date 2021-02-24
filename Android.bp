@@ -86,6 +86,7 @@ apex_defaults {
     key: "com.android.gki.key",
     // Key to sign APEX. Left empty to use defaults.
     certificate: "",
+    updatable: false,
 }
 
 // Helper binary to build APEX manifest for GKI.
