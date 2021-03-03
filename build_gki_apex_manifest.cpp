@@ -46,7 +46,8 @@ int WriteApexManifest(const std::string& apex_name, Json::UInt64 apex_version,
   root["name"] = apex_name;
   root["version"] = apex_version;
   root["preInstallHook"] = "bin/com.android.gki.preinstall";
-  std::string json_string = Json::StyledWriter().write(root);
+  Json::StreamWriterBuilder factory;
+  std::string json_string = Json::writeString(factory, root);
   if (!android::base::WriteStringToFile(json_string, out_file)) {
     PLOG(ERROR) << "Cannot write to " << out_file;
     return EX_SOFTWARE;
