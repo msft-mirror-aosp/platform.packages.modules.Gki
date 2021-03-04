@@ -4,10 +4,6 @@
       "name": "libkver_test"
     },
     {
-      "name": "libkver_test",
-      "host": true
-    },
-    {
       "name": "GkiInstallTest"
     }
   ]
