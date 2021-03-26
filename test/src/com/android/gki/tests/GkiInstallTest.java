@@ -17,6 +17,7 @@
 package com.android.gki.tests;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.either;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
@@ -167,8 +168,8 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
                 "--staged-ready-timeout", String.valueOf(INSTALL_TIMEOUT_MS));
         if (!mExpectInstallSuccess) {
             assertNotNull("Should not be able to install downgrade package", result);
-            assertThat(result, containsString("Downgrade of APEX package " + mPackageName +
-                    " is not allowed."));
+            assertThat(result, either(containsString("Downgrade of APEX package " + mPackageName
+                    + " is not allowed.")).or(containsString("INSTALL_FAILED_VERSION_DOWNGRADE")));
             return;
         }
 
