@@ -20,7 +20,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.either;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isIn;
 import static org.hamcrest.Matchers.notNullValue;
@@ -31,6 +30,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import static java.util.stream.Collectors.toList;
 
@@ -59,7 +59,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Scanner;
-import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @RunWith(DeviceJUnit4Parameterized.class)
 @UseParametersRunnerFactory(DeviceJUnit4ClassRunnerWithParameters.RunnerFactory.class)
@@ -98,6 +99,7 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
     public void setUp() throws Exception {
         inferPackageName();
         skipTestIfPackageNotInstalled();
+        skipTestIfWrongKernelVersion();
         findTestApexFile();
         prepareOverlayfs();
     }
@@ -126,6 +128,37 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         ApexInfo oldApexInfo = getApexInfo(getDevice(), mPackageName);
         assumeThat(oldApexInfo, is(notNullValue()));
         assumeThat(oldApexInfo.name, is(mPackageName));
+    }
+
+    /**
+     * Skip the test if APEX package name does not match kernel version.
+     *
+     * Due to b/186566367, on mixed builds, the wrong GKI APEX may be installed. In that case, just
+     * skip the test.
+     * @throws Exception
+     */
+    private void skipTestIfWrongKernelVersion() throws Exception {
+        Pattern packagePattern = Pattern.compile(
+                "^com\\.android\\.gki\\.kmi_(?<w>\\d+)_(?<x>\\d+)_(?<z>android\\d+)_(?<k>\\d+)$");
+        Matcher packageMatcher = packagePattern.matcher(mPackageName);
+        assertTrue(packageMatcher.matches());
+
+        Pattern kernelPattern = Pattern.compile(
+                "^Linux version (?<fullrel>(?<w>\\d+)\\.(?<x>\\d+)\\.(?<y>\\d+)-(?<z>android\\d+)"
+                        + "-(?<k>\\d+))");
+        String kernel = getDevice().executeShellCommand("cat /proc/version");
+        Matcher kernelMatcher = kernelPattern.matcher(kernel);
+        assumeTrue("Not GKI: " + kernel, kernelMatcher.find());
+
+        String desc = String.format("package %s vs kernel release %s", mPackageName,
+                kernelMatcher.group("fullrel"));
+
+        CLog.i("Checking: %s", desc);
+
+        assumeThat(desc, packageMatcher.group("w"), is(kernelMatcher.group("w")));
+        assumeThat(desc, packageMatcher.group("x"), is(kernelMatcher.group("x")));
+        assumeThat(desc, packageMatcher.group("z"), is(kernelMatcher.group("z")));
+        assumeThat(desc, packageMatcher.group("k"), is(kernelMatcher.group("k")));
     }
 
     /** Find the corresponding APEX test file with mFileName. */
