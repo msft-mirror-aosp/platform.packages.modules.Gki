@@ -16,6 +16,7 @@
 
 package com.android.gki.tests;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.either;
 import static org.hamcrest.Matchers.everyItem;
@@ -135,11 +136,16 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
      *
      * Due to b/186566367, on mixed builds, the wrong GKI APEX may be installed. In that case, just
      * skip the test.
+     *
+     * As an exception, the package may contain "unstable" as the generation. When this is the
+     * case, any generation number in kernel release is considered a match.
+     *
      * @throws Exception
      */
     private void skipTestIfWrongKernelVersion() throws Exception {
         Pattern packagePattern = Pattern.compile(
-                "^com\\.android\\.gki\\.kmi_(?<w>\\d+)_(?<x>\\d+)_(?<z>android\\d+)_(?<k>\\d+)$");
+                "^com\\.android\\.gki\\.kmi_(?<w>\\d+)_(?<x>\\d+)_(?<z>android\\d+)_" +
+                "(?<k>\\d+|unstable)$");
         Matcher packageMatcher = packagePattern.matcher(mPackageName);
         assertTrue(packageMatcher.matches());
 
@@ -158,7 +164,8 @@ public class GkiInstallTest extends BaseHostJUnit4Test {
         assumeThat(desc, packageMatcher.group("w"), is(kernelMatcher.group("w")));
         assumeThat(desc, packageMatcher.group("x"), is(kernelMatcher.group("x")));
         assumeThat(desc, packageMatcher.group("z"), is(kernelMatcher.group("z")));
-        assumeThat(desc, packageMatcher.group("k"), is(kernelMatcher.group("k")));
+        assumeThat(desc, packageMatcher.group("k"),
+                anyOf(is("unstable"), is(kernelMatcher.group("k"))));
     }
 
     /** Find the corresponding APEX test file with mFileName. */
