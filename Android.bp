@@ -128,6 +128,16 @@ gki_apex {
     gen_test: true,
 }
 
+// Build GKI APEX 5.10-android12-1 from $(PRODUCT_OUT)/boot.img.
+// Also generate test packages.
+gki_apex {
+    name: "com.android.gki.kmi_5_10_android12_1",
+    installable: true,
+    kmi_version: "5.10-android12-1",
+    product_out_path: "boot.img",
+    gen_test: true,
+}
+
 // Build GKI APEX 5.4-android12-0 from $(PRODUCT_OUT)/boot-5.4.img
 gki_apex {
     name: "com.android.gki.kmi_5_4_android12_0_boot-5.4",
@@ -136,11 +146,19 @@ gki_apex {
     product_out_path: "boot-5.4.img",
 }
 
-// Build GKI APEX 5.4-android12-0 from $(PRODUCT_OUT)/boot-5.10.img
+// Build GKI APEX 5.10-android12-0 from $(PRODUCT_OUT)/boot-5.10.img
 gki_apex {
     name: "com.android.gki.kmi_5_10_android12_0_boot-5.10",
     installable: false,
     kmi_version: "5.10-android12-0",
+    product_out_path: "boot-5.10.img",
+}
+
+// Build GKI APEX 5.10-android12-1 from $(PRODUCT_OUT)/boot-5.10.img
+gki_apex {
+    name: "com.android.gki.kmi_5_10_android12_1_boot-5.10",
+    installable: false,
+    kmi_version: "5.10-android12-1",
     product_out_path: "boot-5.10.img",
 }
 
