@@ -35,7 +35,7 @@ int CheckKmi(const KernelRelease& kernel_release, const KmiVersion& kmi_version)
   if (actual_kmi_version != kmi_version) {
     LOG(ERROR) << "KMI version does not match. Actual: " << actual_kmi_version.string()
                << ", expected: " << kmi_version.string();
-  //  return EX_SOFTWARE;
+    return EX_SOFTWARE;
   }
   return EX_OK;
 }
