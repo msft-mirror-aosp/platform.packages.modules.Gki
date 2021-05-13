@@ -22,7 +22,7 @@ import (
 )
 
 var digits = "([0-9]+)"
-var reKmi = regexp.MustCompile("^([0-9]+)[.]([0-9]+)-(android[0-9]+)-([0-9]+)$")
+var reKmi = regexp.MustCompile("^([0-9]+)[.]([0-9]+)-(android[0-9]+)-([0-9]+|unstable)$")
 
 // Input is a valid KMI version, e.g. 5.4-android12-0.
 // Return a sanitized string to be used as a suffix of APEX package name
