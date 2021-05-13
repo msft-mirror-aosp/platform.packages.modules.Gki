@@ -18,7 +18,6 @@
 
 #include <android-base/file.h>
 #include <android-base/logging.h>
-#include <android-base/strings.h>
 #include <gflags/gflags.h>
 #include <json/json.h>
 #include <kver/kernel_release.h>
@@ -29,26 +28,16 @@ using android::kver::GetFactoryApexVersion;
 using android::kver::KernelRelease;
 using android::kver::KmiVersion;
 
-static constexpr uint64_t UNSTABLE_GENERATION = UINT64_MAX;
-
 namespace {
 
 int CheckKmi(const KernelRelease& kernel_release, const KmiVersion& kmi_version) {
   const auto& actual_kmi_version = kernel_release.kmi_version();
-  if (actual_kmi_version == kmi_version) {
-    return EX_OK;
+  if (actual_kmi_version != kmi_version) {
+    LOG(ERROR) << "KMI version does not match. Actual: " << actual_kmi_version.string()
+               << ", expected: " << kmi_version.string();
+  //  return EX_SOFTWARE;
   }
-  if (kmi_version.generation() == UNSTABLE_GENERATION &&
-      kmi_version.version() == actual_kmi_version.version() &&
-      kmi_version.patch_level() == actual_kmi_version.patch_level() &&
-      kmi_version.android_release() == actual_kmi_version.android_release()) {
-    LOG(WARNING) << "Actual KMI version " << actual_kmi_version.string()
-                 << " matches unstable KMI version";
-    return EX_OK;
-  }
-  LOG(ERROR) << "KMI version does not match. Actual: " << actual_kmi_version.string()
-             << ", expected: " << kmi_version.string();
-  return EX_SOFTWARE;
+  return EX_OK;
 }
 
 int WriteApexManifest(const std::string& apex_name, Json::UInt64 apex_version,
@@ -86,14 +75,7 @@ int main(int argc, char** argv) {
     LOG(ERROR) << "--kmi_version must be set.";
     return EX_SOFTWARE;
   }
-  std::string_view kmi_version_sv(FLAGS_kmi_version);
-  std::string kmi_version_string;
-  if (android::base::ConsumeSuffix(&kmi_version_sv, "unstable")) {
-    kmi_version_string = std::string(kmi_version_sv) + std::to_string(UNSTABLE_GENERATION);
-  } else {
-    kmi_version_string = kmi_version_sv;
-  }
-  auto kmi_version = KmiVersion::Parse(kmi_version_string);
+  auto kmi_version = KmiVersion::Parse(FLAGS_kmi_version);
   if (!kmi_version.has_value()) {
     LOG(ERROR) << "--kmi_version is not a valid KMI version.";
     return EX_SOFTWARE;
