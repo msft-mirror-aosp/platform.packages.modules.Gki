@@ -113,7 +113,7 @@ cc_binary_host {
 gki_apex {
     name: "com.android.gki.kmi_5_4_android12_0",
     installable: true,
-    kmi_version: "5.4-android12-0",
+    kmi_version: "5.4-android12-unstable",
     product_out_path: "boot.img",
     gen_test: true,
 }
@@ -154,7 +154,7 @@ gki_apex {
 gki_apex {
     name: "com.android.gki.kmi_5_4_android12_0_boot-5.4",
     installable: false,
-    kmi_version: "5.4-android12-0",
+    kmi_version: "5.4-android12-unstable",
     product_out_path: "boot-5.4.img",
 }
 
